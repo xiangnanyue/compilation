@@ -5,6 +5,7 @@ import java.io.*;
 %class Lexer
 %line
 %column
+%state COMMENT 
 %cup
 %{
   /** fonction de test du lexer. */
@@ -17,10 +18,52 @@ import java.io.*;
   }
 %}
 %%
+<YYINITIAL>{
 [0-9]+	{ return new Symbol(sym.TK_VAL, new Double(yytext())); }
+[0-9]+\.[0-9]+ { return new Symbol(sym.TK_VAL, new Double(yytext())); }
 "+"	{ return new Symbol(sym.TK_PLUS); }
+"*" { return new Symbol(sym.TK_TIMES); }
+"-" { return new Symbol(sym.TK_MINUS); }
+"/" { return new Symbol(sym.TK_DIVIDE); }
+";" { return new Symbol(sym.TK_DONE); }
+"(" { return new Symbol(sym.TK_LPARENT); }
+")" { return new Symbol(sym.TK_RPARENT); }
+"sin" { return new Symbol(sym.TK_SIN); }
+"cos" { return new Symbol(sym.TK_COS); }
+"tan" { return new Symbol(sym.TK_TAN); }
+"exp" { return new Symbol(sym.TK_EXP); }
+"^" { return new Symbol(sym.TK_POW); }
+"ln" { return new Symbol(sym.TK_LN); }
+"pi" { return new Symbol(sym.TK_PI); }
+"e" { return new Symbol(sym.TK_E); }
+"==" { return new Symbol(sym.TK_EQUAL); }
+":=" { return new Symbol(sym.TK_ASSIGN); }
+"=" { return new Symbol(sym.TK_REFERENCE); }
+"true" { return new Symbol(sym.TK_TRUE); }
+"false" { return new Symbol(sym.TK_FALSE); }
+"or" { return new Symbol(sym.TK_OR); }
+"and" { return new Symbol(sym.TK_AND); }
+"not" { return new Symbol(sym.TK_NOT); }
+"<" { return new Symbol(sym.TK_LESS); }
+">" { return new Symbol(sym.TK_MORE); }
+">=" { return new Symbol(sym.TK_MOREOREQUAL); }
+"<=" { return new Symbol(sym.TK_LESSOREQUAL); }
+"if" { return new Symbol(sym.TK_IF); }
+"else" { return new Symbol(sym.TK_ELSE); }
+"infinity" { return new Symbol(sym.TK_INFINITY); }
+"NaN" { return new Symbol(sym.TK_NAN); }
+"exit" { return new Symbol(sym.TK_EXIT); }
+"ls" { return new Symbol(sym.TK_SHOWALL); }
+[a-zA-Z_]+ { return new Symbol(sym.TK_IDENT, yytext()); }  
+[0-9]+\.[0-9]+[E][\+\-][0-9]+ { return new Symbol(sym.TK_VAL, new Double(yytext()) ); }
 (\n|\r|\r\n)	{ return new Symbol(sym.TK_DONE); }
 [\ \t\f] { /* ignore espaces et assimiles. */ }
+"#" { yybegin(COMMENT); }
 .	{ System.err.println("unexpected char '" + yytext() +
 			     "' line " + yyline);
 	  return new Symbol(sym.error); }
+}
+<COMMENT> {
+.* { }
+\n { yybegin(YYINITIAL); }
+}

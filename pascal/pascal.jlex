@@ -1,0 +1,48 @@
+import java_cup.runtime.Symbol;
+%%
+%class Lexer
+%line
+%column
+%cup
+%state COMMENT 
+%standalone
+
+ICNST = [0-9]+
+
+%%
+<YYINITIAL>{
+"print"		{ return new Symbol(sym.TK_PRINT);}
+";"		{ return new Symbol(sym.TK_SEP);}
+[0-9]+\.[0-9]+ { return new Symbol(sym.TK_NUM, new Double(yytext()) ); }
+{ICNST}		{ return new Symbol(sym.TK_ICNST, new Integer(yytext())); }
+"+"  { return new Symbol(sym.TK_ADD); }
+"-"    { return new Symbol(sym.TK_MINUS); }
+"*" { return new Symbol(sym.TK_TIMES); }
+"/" { return new Symbol(sym.TK_DIVIDE); }
+"mod" { return new Symbol(sym.TK_MOD); } 
+"(" { return new Symbol(sym.TK_LPARENT); }
+")" { return new Symbol(sym.TK_RPARENT); }
+"{" { return new Symbol(sym.TK_CORP_START); }
+"}" { return new Symbol(sym.TK_CORP_END); }
+"[" { return new Symbol(sym.TK_LCROCHET); }
+"]" { return new Symbol(sym.TK_RCROCHET); }
+"#" { yybegin(COMMENT); }
+"while" { return new Symbol(sym.TK_WHILE); }
+"var" {return new Symbol(sym.TK_VAR_DECLARE); }
+"if" { return new Symbol(sym.TK_IF); }
+"then" { return new Symbol(sym.TK_THEN); }
+"else" { return new Symbol(sym.TK_ELSE); }
+
+[a-zA-Z_]+ { return new Symbol(sym.TK_VAR, yytext()); }
+"=" { return new Symbol(sym.TK_ASSIGN); }
+"SYS.IN" { return new Symbol(sym.TK_IN); }
+[\ \t\n\r\f]	{ }
+.		{ System.err.println("unexpected char '" + yytext() +
+				     "' line " + yyline);
+                  return new Symbol(sym.error); }
+}
+<COMMENT> {
+.* { }
+\n { yybegin(YYINITIAL); }
+}
+

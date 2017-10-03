@@ -7,23 +7,49 @@ import java.io.*;
 parser code {:
   public static void main(String args[]) throws Exception {
     new Parser(new Lexer(new InputStreamReader(System.in))).parse();
+    
   }
 :}
 
+action code {: Map<String,Double> m = new HashMap<String, Double>();:}
+
 // definition des token
-terminal TK_PLUS, TK_DONE;
-terminal Double TK_VAL; 
+terminal TK_PLUS, TK_DONE, TK_TIMES, TK_MINUS, TK_DIVIDE, TK_OR, TK_AND, TK_NOT;
+terminal TK_SIN, TK_COS, TK_TAN, TK_LN, TK_POW, TK_EXP;
+terminal TK_LPARENT, TK_RPARENT;
+terminal Double TK_TRUE, TK_FALSE;
+terminal Double TK_VAL, TK_E, TK_PI, TK_INFINITY, TK_NAN; 
+terminal TK_EQUAL, TK_LESS, TK_MORE, TK_LESSOREQUAL, TK_MOREOREQUAL;
+terminal TK_IF, TK_ELSE;
+terminal TK_ASSIGN, TK_REFERENCE;
+terminal String TK_IDENT;
+terminal TK_EXIT, TK_SHOWALL; 
 
 // definition des etats intermediaires
 non terminal commandes, commande;
-non terminal Double expression;
+non terminal Double expression, assign;
+non terminal instruction;
+non terminal ref;
+non terminal exit;
 
 // associativite et priorite des operateurs
-precedence left TK_PLUS;
+// precedence in pile from the left
+precedence left TK_IF, TK_ELSE;
+precedence left TK_OR;
+precedence left TK_AND;
+precedence left TK_NOT;
+precedence left TK_EQUAL, TK_LESS, TK_MORE, TK_LESSOREQUAL, TK_MOREOREQUAL;
+//precedence left TK_ASSIGN;
+precedence left TK_PLUS, TK_MINUS;
+precedence left TK_TIMES, TK_DIVIDE;
+// plus de taches pour le lexical que le parseur
+precedence left TK_SIN, TK_COS, TK_TAN, TK_LN, TK_POW, TK_EXP;
+
 
 // objectif
 start with commandes;
 
+// 定义多指令
 commandes ::=
     commande
   | commandes commande
@@ -33,6 +59,19 @@ commande ::=
     expression:e // expression seule, affichage
 	{: System.out.println("# " + e); :}
     TK_DONE
+   | assign:a
+  {: System.out.println("# " + a); :}
+   TK_DONE
+   | ref
+   TK_DONE
+   | exit
+  TK_DONE
+  | error TK_DONE
+;
+
+exit ::= 
+    TK_EXIT
+   {: System.exit(0); :}
 ;
 
 expression ::=
@@ -40,4 +79,160 @@ expression ::=
 	{: RESULT = e1 + e2 ; :}
   | TK_VAL:v // valeur
 	{: RESULT = v; :}
+  | TK_NAN
+  {: RESULT = Double.NaN; :}
+  | TK_INFINITY
+  {: RESULT = Double.POSITIVE_INFINITY; :}
+  | expression:e1 TK_MINUS expression:e2 // effectue minus
+  {: RESULT = e1 - e2; :}
+  | expression:e1 TK_TIMES expression:e2
+  {: RESULT = e1 * e2; :}
+  | expression:e1 TK_DIVIDE expression:e2
+  {: RESULT = e1 / e2; :}
+  | TK_MINUS expression:e2 // minus sign means inversion
+  {: RESULT = -e2; :}
+  | TK_LPARENT expression:e1 TK_RPARENT
+  {: RESULT = e1; :}
+  | expression:e1 TK_IF expression:c TK_ELSE expression:e2
+  {:
+    if (c != 0.0 ) {
+      RESULT = e1;
+    } else {
+      RESULT = e2;
+    }
+  :}
+  | TK_SIN expression:e1 
+  {:RESULT = Math.sin(e1);:}
+  | TK_COS expression:e1 
+  {:RESULT = Math.cos(e1);:}
+  | TK_TAN expression:e1 
+  {:RESULT = Math.tan(e1);:}
+  | TK_LN expression:e1 
+  {:RESULT = Math.log(e1);:} 
+  | expression:e2 TK_POW expression:e1 
+  {:RESULT = Math.pow(e2, e1);:} 
+  | TK_EXP expression:e1
+  {:RESULT = Math.exp(e1); :}
+  | TK_E
+  {:RESULT = Math.E; :}
+  | TK_PI
+  {:RESULT = Math.PI; :}
+  | TK_TRUE
+  {: RESULT = 1.; :}
+  | TK_FALSE
+  {: RESULT = 0.; :}
+  | expression:e1 TK_OR expression:e2
+  {: 
+      if (e1 == 0. && e2 == 0.){
+          RESULT = 0.;
+      }
+     else{
+        RESULT = 1. ; 
+     }
+  :}
+  | expression:e1 TK_AND expression:e2
+  {: if (e1 == 1. && e2 == 1.){
+          RESULT = 1.0;
+      }
+     else{
+        RESULT = 0. ; 
+     }
+  :}
+  | TK_NOT expression:e1
+  {: 
+    if (e1 == 0){
+          RESULT = 1.0;
+      }
+     else{
+        RESULT = 0. ; 
+     }
+  :}
+  | expression:e1 TK_MORE expression:e2
+  {:
+    if (e1 > e2) {
+      RESULT = 1.0;
+    } else {
+      RESULT = 0.;
+    }
+  :}
+  | expression:e1 TK_LESS expression:e2
+  {:
+    if (e1 < e2) {
+      RESULT = 1.0;
+    } else {
+      RESULT = 0.;
+    }
+  :}
+  | expression:e1 TK_MOREOREQUAL expression:e2
+  {:
+    if (e1 >= e2) {
+      RESULT = 1.0;
+    } else {
+      RESULT = 0.;
+    }
+  :}
+  | expression:e1 TK_LESSOREQUAL expression:e2
+  {:
+    if (e1 <= e2) {
+      RESULT = 1.0;
+    } else {
+      RESULT = 0.;
+    }
+  :}
+  | expression:e1 TK_EQUAL expression:e2
+  {:
+    if (e1>=e2 && e1<=e2) {
+      RESULT = 1.;
+    } else {
+      RESULT = 0.;
+    }
+  :}
+  | TK_IDENT:r
+    {:RESULT = m.get(r); :}
 ;
+
+ref ::= 
+  TK_SHOWALL
+  {: 
+    for ( Object x : m.keySet()) {
+            System.out.println(x + "=" + m.get(x));
+      }
+  :}
+;
+
+// TK_DONE not here, already on the level above 
+assign ::= 
+  TK_IDENT:r TK_ASSIGN expression:n 
+  {:  
+      m.put(r, n);
+      System.out.println("# " + r + "=" + m.get(r));
+      RESULT = n;
+  :}
+  | TK_LPARENT assign:a1 TK_RPARENT
+  {:
+    RESULT = a1;
+  :}
+  | TK_IDENT:r TK_PLUS TK_ASSIGN expression:n
+  {:
+    m.put(r, m.get(r)+n);
+    System.out.println("# " + r + "=" + m.get(r));
+    RESULT = m.get(r);
+  :}
+  | TK_IDENT:r TK_MINUS TK_ASSIGN expression:n
+  {:
+    m.put(r, m.get(r)-n);
+    System.out.println("# " + r + "=" + m.get(r));
+    RESULT = m.get(r);
+  :}
+  | TK_IDENT:r TK_TIMES TK_ASSIGN expression:n
+  {:
+    m.put(r, m.get(r)*n);
+    System.out.println("# " + r + "=" + m.get(r));
+    RESULT = m.get(r);
+  :}
+  | assign:a1 TK_PLUS expression:e1
+  {:
+    RESULT = a1+e1;
+  :}
+;
+

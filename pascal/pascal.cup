@@ -1,0 +1,169 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+parser code {:
+  public static void main(String args[]) throws Exception {
+    new Parser(new Lexer(new InputStreamReader(System.in))).parse();
+  }
+:}
+
+action code {:
+  // attributes & methods seen from actions
+
+  String make_inst(String lab, String op, String arg) {
+    return lab + "\t" + op + "\t" + arg + "\n";
+  }
+
+  String make_comm(String comment) {
+    return ";/ " + comment + "\n";
+  }
+
+  Integer condition_num = 0;
+
+  Map<String,Integer> m = new HashMap<String, Integer>();
+:}
+
+terminal TK_SEP, TK_PRINT, TK_ADD, TK_MINUS, TK_TIMES, TK_DIVIDE, TK_MOD,TK_ASSIGN;
+terminal TK_LPARENT, TK_RPARENT, TK_LCROCHET, TK_RCROCHET;
+terminal TK_VAR_DECLARE;
+terminal String TK_VAR;
+terminal Integer TK_ICNST;
+terminal Double TK_NUM;
+terminal String TK_IN;
+terminal TK_IF, TK_ELSE, TK_THEN;
+terminal TK_CORP_START, TK_CORP_END;
+terminal TK_WHILE;
+
+non terminal target;
+non terminal String program, linst, inst, print, expr, cycle;
+
+precedence left TK_ADD, TK_MINUS;
+precedence left TK_TIMES, TK_DIVIDE;
+precedence left TK_MOD;
+precedence left TK_VAR;
+
+start with target;
+
+target ::= program:s {: System.out.println(s); :}
+  ;
+
+program ::= linst:l {: RESULT = l + "\tSTOP\n"; :}
+  ;
+
+// 平级调用 linst -> cycle -> linst 
+linst ::= inst:i {: RESULT = i; :}
+  | cycle:c {:RESULT = c;:}
+  | linst:l inst:i {: RESULT = l + i; :}
+  | linst:l cycle:c {: RESULT = l + c; :}
+  ;
+
+cycle ::= TK_WHILE expr:e TK_CORP_START linst:s TK_CORP_END TK_SEP
+  {:
+    String debut = "debut" + Integer.toString(condition_num);
+    String fin = "fin" + Integer.toString(condition_num); 
+    condition_num += 1;
+    RESULT = debut + "\t" + "EQU\t*" + "\n"
+          + e
+          + "\tBEZ\t" + fin + "\n"
+          + s
+          + "\tPUSH\t" + debut + "\n"
+          + "\tGOTO\n"
+          + fin + "\t" + "EQU\t*" + "\n";
+  :}
+  //| cycle:c linst:l {: RESULT = c + l; :}
+  ;
+
+inst  ::= print:i TK_SEP {: RESULT = i; :}
+	| TK_SEP {: RESULT = ""; :}
+  | expr:e TK_SEP {: RESULT = e; :}
+  // var [3] a ;
+  | TK_VAR_DECLARE TK_LCROCHET TK_ICNST:i TK_RCROCHET TK_VAR:v TK_SEP
+  {:
+    int x = 0;
+    String toreturn = "";
+    //System.out.println("Create a "+i + "length table...");
+    while(x < Integer.valueOf(i)){
+      toreturn = toreturn + v+"@"+Integer.toString(x) + "\tDS\t" + "1" + "\n";
+      x += 1;
+    }
+    RESULT = toreturn;
+  :}
+  | TK_VAR:v TK_LCROCHET TK_ICNST:i TK_RCROCHET TK_ASSIGN expr:e TK_SEP
+  {:
+    String vi = v+"@"+i ;
+    RESULT = "\tPUSH\t" + vi + "\n"
+            + e
+            + "\tSTORE\n"; 
+  :}
+  |  TK_VAR:v TK_ASSIGN expr:e 
+    {: RESULT = "\tPUSH\t" + v + "\n"
+            + e
+            + "\tSTORE\t" +"\n"; :}
+  | TK_IF expr:e1 TK_THEN inst:i1 TK_ELSE inst:i2 TK_SEP
+  {:
+    String labelse = "labelse" + Integer.toString(condition_num);
+    String labfin = "labfin" + Integer.toString(condition_num);
+    condition_num += 1;
+    RESULT = e1 
+            + "\tBEZ\t" + labelse + "\n"
+            + i1
+            + "\tPUSH\t" + labfin + "\n"
+            + "GOTO" + "\n"
+            + labelse + "\t" + "EQU\t*" + "\n" 
+            + i2
+            + labfin + "\t" + "EQU\t*" + "\n" ;
+  :}
+	;
+print ::= TK_PRINT expr:e
+        {:
+	    String comment = make_comm("print...");
+	    RESULT = comment + e + "\tOUT\n";
+	:}
+	;
+expr ::= TK_ICNST:i {: RESULT = "\tPUSH\t" + i + "\n"; :}
+  | TK_NUM: i {:  RESULT = "\tPUSH\t" + i + "\n"; :}
+  | expr:a TK_ADD expr:b 
+  {: RESULT = a + b
+            + "\tADD\t" + "\n" ; :}
+	| expr:a TK_MINUS expr:b 
+  {: RESULT = a + b
+            + "\tSUB\t" + "\n" ; :}
+  | expr:a TK_TIMES expr:b 
+  {: RESULT = a + b
+            + "\tMUL\t" + "\n" ; :}
+  | expr:a TK_DIVIDE expr:b 
+  {: RESULT = a + b
+            + "\tDIV\t" + "\n" ; :}
+  | TK_LPARENT expr:e TK_RPARENT 
+  {: RESULT = e; :}
+  | TK_VAR_DECLARE TK_VAR:v
+  {: 
+    RESULT = v + "\tDS\t" + "1" + "\n"
+            + "\tPUSH\t" + v + "\n"
+            + "\tPUSH\t" + "0" +"\n"
+            + "\tSTORE\t" +"\n"; :}
+            //+"\tOUT\t" + "\n"
+  | TK_VAR:v
+  {: RESULT = "\tPUSH\t" + v + "\n"
+            + "\tLOAD\t" + "\n"; 
+  :}
+  | TK_VAR:v TK_LCROCHET TK_ICNST:i TK_RCROCHET
+  {:
+  // change v to address
+    String vi = v + "@" + i ;
+    RESULT = "\tPUSH\t" + vi + "\n"
+            + "\tLOAD\t" + "\n";
+  :}
+  | TK_IN:i 
+  {: RESULT = "\tIN\t" + "\n"; :}
+  | TK_MINUS expr:e
+  {: String exp = "\tPUSH\t" + "0" + "\n"; 
+     RESULT = exp + e 
+            + "\tSUB\t" + "\n"; :}
+  | expr:e1 TK_MOD expr:e2
+  {:  RESULT = e1 
+            + e1 + e2 + "\tDIV\t\n"
+            + e2 + "\tMUL\t\n"
+            + "\tSUB\t\n"; :} 
+  ;
