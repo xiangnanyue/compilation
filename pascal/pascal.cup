@@ -15,17 +15,51 @@ action code {:
     return lab + "\t" + op + "\t" + arg + "\n";
   }
 
+  String declare_(String v, Integer s) {
+    return v + "\tDS\t" + "1" + "\n"
+            + "\tPUSH\t" + v + "\n"
+            + "\tPUSH\t" + s.toString() +"\n"
+            + "\tSTORE\t" +"\n"; 
+  }
+
+  String reflection_(String v, String expression) {
+    return "\tPUSH\t" + v + "\n"
+            + expression
+            + "\tSTORE\t" +"\n"; 
+  }
+
+  String push_(String arg) {
+    return "\t" + "PUSH" + "\t" + arg + "\n";
+  }
+
+  String compare_(String comparator, String e1, String e2, Integer condition_num) {
+      String sivrai = "sivrai" + Integer.toString(condition_num);
+      String lafin = "lafin" + Integer.toString(condition_num);
+      return  e1 
+            + e2
+            + "\tSUB\n"
+            + "\t" + comparator + "\t" + sivrai + "\n"
+            + push_("0")
+            + push_(lafin)
+            + "\tGOTO\n"
+            + sivrai + "\t" + "EQU\t*" + "\n"
+            + push_("1")
+            + lafin + "\t" + "EQU\t*" + "\n";
+  }
+
   String make_comm(String comment) {
     return ";/ " + comment + "\n";
   }
 
   Integer condition_num = 0;
+  Integer list_head = 1111;
 
   Map<String,Integer> m = new HashMap<String, Integer>();
 :}
 
 terminal TK_SEP, TK_PRINT, TK_ADD, TK_MINUS, TK_TIMES, TK_DIVIDE, TK_MOD,TK_ASSIGN;
 terminal TK_LPARENT, TK_RPARENT, TK_LCROCHET, TK_RCROCHET;
+terminal TK_LESS, TK_MORE, TK_MOREOREQUAL, TK_LESSOREQUAL, TK_EQUAL;
 terminal TK_VAR_DECLARE;
 terminal String TK_VAR;
 terminal Integer TK_ICNST;
@@ -34,13 +68,20 @@ terminal String TK_IN;
 terminal TK_IF, TK_ELSE, TK_THEN;
 terminal TK_CORP_START, TK_CORP_END;
 terminal TK_WHILE;
+terminal TK_VIRGULE;
+terminal TK_TRUE, TK_FALSE;
+terminal TK_AND, TK_OR, TK_NOT;
+terminal TK_EXIT;
 
 non terminal target;
-non terminal String program, linst, inst, print, expr, cycle;
+non terminal String program, linst, inst, print, expr, cycle, varlist;
 
+precedence left TK_AND, TK_OR;
+precedence left TK_LESS, TK_MORE, TK_MOREOREQUAL, TK_LESSOREQUAL, TK_EQUAL;
 precedence left TK_ADD, TK_MINUS;
 precedence left TK_TIMES, TK_DIVIDE;
 precedence left TK_MOD;
+precedence left TK_NOT;
 precedence left TK_VAR;
 
 start with target;
@@ -77,29 +118,25 @@ cycle ::= TK_WHILE expr:e TK_CORP_START linst:s TK_CORP_END TK_SEP
 inst  ::= print:i TK_SEP {: RESULT = i; :}
 	| TK_SEP {: RESULT = ""; :}
   | expr:e TK_SEP {: RESULT = e; :}
-  // var [3] a ;
   | TK_VAR_DECLARE TK_LCROCHET TK_ICNST:i TK_RCROCHET TK_VAR:v TK_SEP
   {:
-    int x = 0;
-    String toreturn = "";
-    //System.out.println("Create a "+i + "length table...");
-    while(x < Integer.valueOf(i)){
-      toreturn = toreturn + v+"@"+Integer.toString(x) + "\tDS\t" + "1" + "\n";
-      x += 1;
-    }
-    RESULT = toreturn;
+    String make_taille = make_inst(v, "DS", i.toString()) ;
+    RESULT = make_taille;
   :}
-  | TK_VAR:v TK_LCROCHET TK_ICNST:i TK_RCROCHET TK_ASSIGN expr:e TK_SEP
+  | TK_VAR:v TK_LCROCHET expr:i TK_RCROCHET TK_ASSIGN expr:e TK_SEP
   {:
-    String vi = v+"@"+i ;
-    RESULT = "\tPUSH\t" + vi + "\n"
-            + e
-            + "\tSTORE\n"; 
+    RESULT = push_(v) + i + "\tADD\n" + e
+          + "\tSTORE\n";
+  :}
+  |  TK_VAR_DECLARE TK_VAR:v TK_ASSIGN expr:e 
+  {: 
+    RESULT = declare_(v, 0)
+            + reflection_(v, e); 
   :}
   |  TK_VAR:v TK_ASSIGN expr:e 
-    {: RESULT = "\tPUSH\t" + v + "\n"
-            + e
-            + "\tSTORE\t" +"\n"; :}
+  {: 
+    RESULT = reflection_(v, e); 
+  :}
   | TK_IF expr:e1 TK_THEN inst:i1 TK_ELSE inst:i2 TK_SEP
   {:
     String labelse = "labelse" + Integer.toString(condition_num);
@@ -114,6 +151,11 @@ inst  ::= print:i TK_SEP {: RESULT = i; :}
             + i2
             + labfin + "\t" + "EQU\t*" + "\n" ;
   :}
+  | TK_EXIT TK_LPARENT TK_ICNST:i TK_RPARENT TK_SEP
+  {:
+    RESULT = push_(i.toString()) + "\tSTOP\n";
+  :}
+
 	;
 print ::= TK_PRINT expr:e
         {:
@@ -137,22 +179,24 @@ expr ::= TK_ICNST:i {: RESULT = "\tPUSH\t" + i + "\n"; :}
             + "\tDIV\t" + "\n" ; :}
   | TK_LPARENT expr:e TK_RPARENT 
   {: RESULT = e; :}
-  | TK_VAR_DECLARE TK_VAR:v
+  // | TK_VAR_DECLARE TK_VAR:v
+  // {: 
+  //   RESULT = v + "\tDS\t" + "1" + "\n"
+  //           + "\tPUSH\t" + v + "\n"
+  //           + "\tPUSH\t" + "0" +"\n"
+  //           + "\tSTORE\t" +"\n"; :}
+  | varlist:vl 
   {: 
-    RESULT = v + "\tDS\t" + "1" + "\n"
-            + "\tPUSH\t" + v + "\n"
-            + "\tPUSH\t" + "0" +"\n"
-            + "\tSTORE\t" +"\n"; :}
-            //+"\tOUT\t" + "\n"
+    RESULT = vl; 
+  :}
   | TK_VAR:v
-  {: RESULT = "\tPUSH\t" + v + "\n"
+  {: 
+    RESULT = "\tPUSH\t" + v + "\n"
             + "\tLOAD\t" + "\n"; 
   :}
-  | TK_VAR:v TK_LCROCHET TK_ICNST:i TK_RCROCHET
+  | TK_VAR:v TK_LCROCHET expr:i TK_RCROCHET
   {:
-  // change v to address
-    String vi = v + "@" + i ;
-    RESULT = "\tPUSH\t" + vi + "\n"
+    RESULT = push_(v) + i + "\tADD\n"
             + "\tLOAD\t" + "\n";
   :}
   | TK_IN:i 
@@ -165,5 +209,71 @@ expr ::= TK_ICNST:i {: RESULT = "\tPUSH\t" + i + "\n"; :}
   {:  RESULT = e1 
             + e1 + e2 + "\tDIV\t\n"
             + e2 + "\tMUL\t\n"
-            + "\tSUB\t\n"; :} 
+            + "\tSUB\t\n"; 
+  :} 
+  | TK_TRUE
+  {:
+    RESULT = push_("1") ;
+  :}
+  | TK_FALSE
+  {:
+    RESULT = push_("0") ;
+  :}
+  | expr:e1 TK_MORE expr: e2
+  {:
+      RESULT = compare_("BGZ", e1, e2, condition_num++);
+  :}
+  | expr:e1 TK_LESS expr: e2
+  {:
+      RESULT = compare_("BGZ", e2, e1, condition_num++);
+  :}
+  | expr:e1 TK_EQUAL expr: e2
+  {:
+      RESULT = compare_("BEZ", e2, e1, condition_num++);
+  :}
+  | expr:e1 TK_LESSOREQUAL expr: e2
+  {:
+      RESULT = compare_("BEZ", e2, e1, condition_num++)
+            + compare_("BGZ", e2, e1, condition_num++)
+            + "\tOR\n";
+  :}
+  | expr:e1 TK_MOREOREQUAL expr: e2
+  {:
+      RESULT = compare_("BEZ", e2, e1, condition_num++)
+            + compare_("BGZ", e1, e2, condition_num++)
+            + "\tOR\n";
+  :}
+  | expr:e1 TK_AND expr:e2
+  {:
+    String push0 = push_("0");
+    String push1 = push_("1");
+    String product = compare_("BEZ", e1, push1, condition_num++)
+          + compare_("BEZ", e2, push1, condition_num++)
+          + "\tMUL\n";
+    RESULT = compare_("BEZ", product, push1, condition_num++);
+  :}
+  | expr:e1 TK_OR expr:e2
+  {:
+    String push0 = push_("0");
+    String push1 = push_("1");
+    String sum = compare_("BEZ", e1, push1, condition_num++)
+          + compare_("BEZ", e2, push1, condition_num++)
+          + "\tADD\n";
+    RESULT = compare_("BGZ", sum, push0, condition_num++);
+  :}
+  | TK_NOT expr:e
+  {:
+    String push0 = push_("0");
+    RESULT = compare_("BEZ", e, push0, condition_num++);
+  :}
+  ;
+
+varlist ::= TK_VAR_DECLARE TK_VAR:v
+  {: 
+    RESULT = declare_(v, 0);
+  :}
+  | varlist:vl TK_VIRGULE TK_VAR:v
+  {:
+    RESULT = vl + declare_(v, 0) ;
+  :}
   ;

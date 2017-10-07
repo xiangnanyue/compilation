@@ -24,6 +24,7 @@ terminal TK_IF, TK_ELSE;
 terminal TK_ASSIGN, TK_REFERENCE;
 terminal String TK_IDENT;
 terminal TK_EXIT, TK_SHOWALL; 
+terminal TK_ME, TK_YOU, TK_LOVE;
 
 // definition des etats intermediaires
 non terminal commandes, commande;
@@ -44,6 +45,7 @@ precedence left TK_PLUS, TK_MINUS;
 precedence left TK_TIMES, TK_DIVIDE;
 // plus de taches pour le lexical que le parseur
 precedence left TK_SIN, TK_COS, TK_TAN, TK_LN, TK_POW, TK_EXP;
+precedence left TK_LOVE;
 
 
 // objectif
@@ -189,6 +191,12 @@ expression ::=
   :}
   | TK_IDENT:r
     {:RESULT = m.get(r); :}
+  | TK_ME 
+  {: RESULT = 1.; :}
+  | TK_YOU
+  {: RESULT = 1.; :}
+  | expression:e1 TK_LOVE expression:e2
+  {: RESULT = e1 + e2 + Double.POSITIVE_INFINITY ; :}
 ;
 
 ref ::= 

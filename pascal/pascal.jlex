@@ -26,13 +26,30 @@ ICNST = [0-9]+
 "}" { return new Symbol(sym.TK_CORP_END); }
 "[" { return new Symbol(sym.TK_LCROCHET); }
 "]" { return new Symbol(sym.TK_RCROCHET); }
+"<" { return new Symbol(sym.TK_LESS); }
+">" { return new Symbol(sym.TK_MORE); }
+">=" { return new Symbol(sym.TK_MOREOREQUAL); }
+"<=" { return new Symbol(sym.TK_LESSOREQUAL); }
+"==" { return new Symbol(sym.TK_EQUAL); } 
+"," { return new Symbol(sym.TK_VIRGULE); }
 "#" { yybegin(COMMENT); }
+"交" { return new Symbol(sym.TK_AND); }
+"并" { return new Symbol(sym.TK_OR); }
+"非" { return new Symbol(sym.TK_NOT); }
+"若" { return new Symbol(sym.TK_IF); }
+"则" { return new Symbol(sym.TK_THEN); }
+"又何须" { return new Symbol(sym.TK_ELSE); }
+"and" { return new Symbol(sym.TK_AND); }
+"or" { return new Symbol(sym.TK_OR); }
+"not" { return new Symbol(sym.TK_NOT); }
+"true" { return new Symbol(sym.TK_TRUE); }
+"false" { return new Symbol(sym.TK_FALSE); }
 "while" { return new Symbol(sym.TK_WHILE); }
 "var" {return new Symbol(sym.TK_VAR_DECLARE); }
 "if" { return new Symbol(sym.TK_IF); }
 "then" { return new Symbol(sym.TK_THEN); }
 "else" { return new Symbol(sym.TK_ELSE); }
-
+"exit" { return new Symbol(sym.TK_EXIT); }
 [a-zA-Z_]+ { return new Symbol(sym.TK_VAR, yytext()); }
 "=" { return new Symbol(sym.TK_ASSIGN); }
 "SYS.IN" { return new Symbol(sym.TK_IN); }
